@@ -52,7 +52,7 @@ def make_crops(
         for k in range(num_crops_per_image):
             save_image(cropping(pred), f"{out_path}/{i:04d}/{k:04}.png")
 
-    Parallel(n_jobs=16, verbose=10)(process_image(*x) for x in enumerate(image_paths))
+    Parallel(n_jobs=4, verbose=5)(process_image(*x) for x in enumerate(image_paths))
 
 
 def crop_dataset():
@@ -87,7 +87,7 @@ def eval_experiment(
     suffixes: List[str],
     distance_metrics=[
         torchmetrics.PeakSignalNoiseRatio(data_range=2.0).cuda(),
-        lpips.LearnedPerceptualImagePatchSimilarity(net_type="vgg").cuda(),
+        lpips.LearnedPerceptualImagePatchSimilarity(net_type="vgg", normalize=True).cuda(),
     ],
 ):
     for suffix in suffixes:
