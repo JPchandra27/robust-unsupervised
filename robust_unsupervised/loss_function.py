@@ -13,7 +13,8 @@ class MultiscaleLPIPS:
         self.min_loss_res = min_loss_res
         self.weights = level_weights
         self.l1_weight = l1_weight
-        self.lpips_network = LPIPS(net="vgg", verbose=False).cuda()
+        # Added spatial=True so it returns the (H, W) map instead of a single scalar
+        self.lpips_network = LPIPS(net="vgg", spatial=True, verbose=False).cuda()
 
     def measure_lpips(self, x, y, mask, return_map=False):
         if mask is not None:
