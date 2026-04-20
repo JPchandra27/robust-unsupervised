@@ -166,7 +166,8 @@ if __name__ == '__main__':
                         u, s, v = torch.linalg.svd(Wp_variable.data[0], full_matrices=False)
                         basis = v[:128] # Keep top 128 components for the anchor
                         
-                    Wpp_variable.project(basis)
-
                     Wpp_variable = WppVariable.from_Wp(Wp_variable)
+                    
+                    with torch.no_grad():
+                        Wpp_variable.project(basis)
                     run_phase("W++", Wpp_variable, config.global_lr_scale * 0.005)
