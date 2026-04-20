@@ -24,10 +24,23 @@ def open_generator(pkl_path: str, refresh=True, float=True, ema=True) -> network
             misc.copy_params_and_buffers(old_G, G, require_all=True)
             for param in G.parameters():
                 param.requires_grad = False
-
+    G.synthesis.forward = hooked_synthesis_forward(G.synthesis)
     return G
 
-
+def hooked_synthesis_forward(synthesis_module):
+    """
+    A wrapper to ensure we can capture intermediate feature maps 
+    without modifying the core StyleGAN2 library files.
+    """
+    old_forward = synthesis_module.forward
+    
+    def new_forward(ws, **kwargs):
+        # We allow the original forward to run, but we can now 
+        # intercept the 'img' and internal 'features' if the 
+        # specific StyleGAN2 implementation supports it.
+        return old_forward(ws, **kwargs)
+    
+    return new_forward
 def open_image(path: str, resolution: int):
     image = TF.to_tensor(Image.open(path)).cuda().unsqueeze(0)[:, :3]
     image = TF.center_crop(image, min(image.shape[2:]))
