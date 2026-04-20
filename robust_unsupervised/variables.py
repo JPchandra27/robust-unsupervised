@@ -174,10 +174,32 @@ class WppVariable(Variable):
 
     @staticmethod
     def from_Wp(Wp: WpVariable):
-        data = Wp.data.detach().repeat_interleave(512, dim=1)
-
-        return WppVariable(Wp.G, nn.parameter.Parameter(data))
+        # Detach to start Phase 3 with a clean slate
+        data = Wp.data.detach().clone()
+        # Ensure it is a Parameter so NGD can optimize it
+        return WppVariable(Wp.G, nn.Parameter(data))
 
     def to_input_tensor(self):
-        return self.data
+        # Reshape the flattened W++ parameters back to the StyleGAN synthesis format
+        # [batch, 512 * num_ws, 512] -> [batch, num_ws, 512] via averaging or slicing
+        # For LFMA, we typically treat the data as a delta over the Wp base.
+        if self.data.shape[1] == self.G.num_ws:
+            return self.data
+        return self.data.reshape(-1, self.G.num_ws, 512)
+        
+    @torch.no_grad()
+    def project(self, basis: torch.Tensor):
+        """
+        Projects the current W++ variable onto a provided orthogonal basis.
+        basis: [rank, 512] matrix generated from Phase 2.
+        """
+        # Flattened projection: W_proj = B * (B^T * W)
+        # This keeps the latent vector within the high-variance subspace found in Phase 2
+        batch, num_ws, dim = self.data.shape
+        flat_data = self.data.reshape(-1, dim)
+        
+        # Linear algebra projection
+        projected = flat_data @ basis.T @ basis
+        self.data.copy_(projected.reshape(batch, num_ws, dim))
+        return self
 
