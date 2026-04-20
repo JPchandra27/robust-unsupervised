@@ -31,7 +31,8 @@ class NGD(torch.optim.SGD):
                 if error_map is not None:
                     # Normalize the error map to create a relative 'attention' mask
                     # Low error regions get smaller updates to preserve pFID
-                    mask_weight = torch.sigmoid((error_map - error_map.mean()) / (error_map.std() + 1e-8))
+                    # Added unbiased=False to prevent NaN if degrees of freedom is 0
+                    mask_weight = torch.sigmoid((error_map - error_map.mean()) / (error_map.std(unbiased=False) + 1e-8))
                     g = g * mask_weight.mean()
 
                 # 4. Final Parameter Update
