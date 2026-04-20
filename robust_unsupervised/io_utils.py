@@ -24,21 +24,48 @@ def open_generator(pkl_path: str, refresh=True, float=True, ema=True) -> network
             misc.copy_params_and_buffers(old_G, G, require_all=True)
             for param in G.parameters():
                 param.requires_grad = False
+    
+    # FIXED: This must be outside the 'if refresh' block to ensure 
+    # it applies to the generator regardless of the refresh setting.
     G.synthesis.forward = hooked_synthesis_forward(G.synthesis)
     return G
 
 def hooked_synthesis_forward(synthesis_module):
     """
-    A wrapper to ensure we can capture intermediate feature maps 
-    without modifying the core StyleGAN2 library files.
+    Captures intermediate block activations during the forward pass.
+    Activations are stored in synthesis_module.activations for loss calculation.
     """
     old_forward = synthesis_module.forward
     
     def new_forward(ws, **kwargs):
-        # We allow the original forward to run, but we can now 
-        # intercept the 'img' and internal 'features' if the 
-        # specific StyleGAN2 implementation supports it.
-        return old_forward(ws, **kwargs)
+        synthesis_module.activations = {}
+        
+        def hook_fn(name):
+            def hook(module, input, output):
+                # Standard StyleGAN2-ADA output is usually (img, features) or just img
+                if isinstance(output, tuple):
+                    # We take the first element which is the feature map
+                    synthesis_module.activations[name] = output[0]
+                else:
+                    synthesis_module.activations[name] = output
+            return hook
+
+        handles = []
+        # Target blocks that influence pFID/LPIPS balance
+        # FIXED: Ensure we are looking at the right submodule level
+        for name, module in synthesis_module.named_children():
+            # StyleGAN2 blocks are usually named like 'b64', 'b128', etc.
+            if any(res in name for res in ['64', '128', '256']):
+                handles.append(module.register_forward_hook(hook_fn(name)))
+        
+        try:
+            out = old_forward(ws, **kwargs)
+        finally:
+            # Crucial for Kaggle: remove hooks to prevent memory leaks
+            for h in handles:
+                h.remove()
+                
+        return out
     
     return new_forward
 def open_image(path: str, resolution: int):
