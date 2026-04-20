@@ -20,16 +20,27 @@ def run_phase(label: str, variable: Variable, lr: float):
     # Run optimization loop
     optimizer = NGD(variable.parameters(), lr=lr)
     try:
+        # 150 iterations per phase (Total 450 per image)
         for _ in tqdm.tqdm(range(150), desc=label):
             x = variable.to_image()
+            
+            # Compute loss
+            # Note: loss_fn (MultiscaleLPIPS) now stores .last_spatial_map internally
             loss = loss_fn(degradation.degrade_prediction, x, target, degradation.mask).mean()
 
             optimizer.zero_grad()
             loss.backward()
-            optimizer.step()
+            
+            # LFMA Modification: If we are in Phase 3 (W++), pass the spatial map to the optimizer
+            if label == "W++":
+                optimizer.step(error_map=loss_fn.last_spatial_map)
+            else:
+                optimizer.step()
 
     except KeyboardInterrupt:
         pass
+
+    # ... [Rest of the logging code remains exactly the same as your baseline] ...
 
     # Log results
     suffix = "_" + label
@@ -143,6 +154,13 @@ if __name__ == '__main__':
 
                     Wp_variable = WpVariable.from_W(W_variable)
                     run_phase("W+", Wp_variable, config.global_lr_scale * 0.02)
+
+                    # --- LFMA ANCHORING STEP ---
+                    # We treat the W+ result as the "natural manifold" center.
+                    # This generates the basis used by Wpp_variable.project() if you chose to use it.
+                    with torch.no_grad():
+                        u, s, v = torch.linalg.svd(Wp_variable.data[0], full_matrices=False)
+                        basis = v[:128] # Keep top 128 components for the anchor
 
                     Wpp_variable = WppVariable.from_Wp(Wp_variable)
                     run_phase("W++", Wpp_variable, config.global_lr_scale * 0.005)
