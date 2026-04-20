@@ -4,6 +4,10 @@ import glob
 import benchmark
 from benchmark import Task, Degradation
 from robust_unsupervised import *
+import os
+import datetime
+import tqdm
+import torch
 
 
 config = parse_config()
@@ -161,6 +165,8 @@ if __name__ == '__main__':
                     with torch.no_grad():
                         u, s, v = torch.linalg.svd(Wp_variable.data[0], full_matrices=False)
                         basis = v[:128] # Keep top 128 components for the anchor
+                        
+                    Wpp_variable.project(basis)
 
                     Wpp_variable = WppVariable.from_Wp(Wp_variable)
                     run_phase("W++", Wpp_variable, config.global_lr_scale * 0.005)
