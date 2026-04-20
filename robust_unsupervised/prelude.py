@@ -27,6 +27,8 @@ import datetime
 import torchvision.transforms.functional as TF
 from torchvision.utils import save_image, make_grid
 import training.networks as networks
+import torch.linalg as linalg # Added for Orthogonal Basis (OSP)
+from torch.cuda.amp import autocast # Added for memory-efficient forward passes
 
 from abc import ABC, abstractmethod, abstractstaticmethod, abstractclassmethod
 from dataclasses import dataclass, field
