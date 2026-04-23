@@ -116,7 +116,7 @@ def eval_experiment(
 
             for im_path in globr(f"{expr_path}/inversions/**/pred{suffix}.png"):
                 def imopen(x):
-                    return (read_image(x).unsqueeze(0).float() / 255.0) * 2.0 - 1.0
+                    return (read_image(x).unsqueeze(0).float() / 255.0) 
 
                 pred = imopen(im_path)
                 degraded_pred = imopen(replace(im_path, f"pred{suffix}", f"degraded_pred{suffix}"))
