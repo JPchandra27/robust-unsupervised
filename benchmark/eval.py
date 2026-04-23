@@ -101,6 +101,7 @@ def eval_experiment(
                 f"python -m pytorch_fid benchmark/FFHQ-X_crops128_ncrops1000.npz {expr_path}/crops{CROP_RES_LABEL}{suffix}".split(" ")
             )
             fid_score = float(result.decode("utf8").strip().replace("FID:  ", ""))
+            print(f"🔥 pFID for {suffix}: {fid_score}")
             json.dump(
                 fid_score,
                 open(
@@ -168,5 +169,4 @@ def eval_all_experiments(
 
 if __name__ == "__main__":
     import sys 
-    breakpoint()
     eval_all_experiments(sys.argv[1] + "/*", ["_W++"])
